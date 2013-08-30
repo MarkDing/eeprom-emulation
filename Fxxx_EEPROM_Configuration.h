@@ -73,7 +73,9 @@
 
 #define EE_SECTORS      (U8)(FL_PAGE_SIZE/(EE_SIZE+EE_TAG_SIZE))
 
-#define EE_VRIABLE_SIZE    2 // 8 bit address, 8 bit data, total 2 bytes.
+#define EE_DATA_SIZE        1 // 8 bit data
+#define EE_ADDR_SIZE        1 // 8 bit addr
+#define EE_VARIABLE_SIZE    (EE_DATA_SIZE + EE_ADDR_SIZE)
 
 #define SUCCESS 0x00
 #define ERROR   0x01
