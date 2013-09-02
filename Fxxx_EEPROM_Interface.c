@@ -1,4 +1,5 @@
-/* @file Fxxx_EEPROM_Interface.c
+/**
+ * @file Fxxx_EEPROM_Interface.c
  * @brief EEPROM emulation interface for Silicon Labs Flash-based 8051 MCUs.
  *
  * @date 27 Aug 2013
@@ -16,45 +17,14 @@
  * Original content and implementation provided by Silicon Laboratories.
  */
 
-
-//-----------------------------------------------------------------------------
-// Includes
-//-----------------------------------------------------------------------------
 #include <compiler_defs.h>
 #include "Fxxx_Flash_Interface.h"
 #include "Fxxx_EEPROM_Configuration.h"
 
-//-----------------------------------------------------------------------------
-// Internal Constants
-//-----------------------------------------------------------------------------
 
-#define NEW_TAG         0xFF        // Value for New Sector
-#define WIP_TAG         0x7F        // Value for WIP Sector
-
-#define DONE_TAG_MIN    0x01        // Done tag minimum
-#define DONE_TAG_MAX    0x7E        // Done tag maximum
-
-#define NO_TAG          0x00
-
-//-----------------------------------------------------------------------------
-// Global Variables
-//-----------------------------------------------------------------------------
-U8 currentEepromSector = 0, currentEepromPage = 0;
-
-//-----------------------------------------------------------------------------
-// Function Prototypes
-//-----------------------------------------------------------------------------
-void copySector(U16, U16, U8, U8);
-U16 getBaseAddress(U8, U8);
-U8 findNextSector(void);
-U8 findCurrentSector(void);
-
-U8 EEPROM_WriteBlock (U8, U8 *, U8);
-U8 EEPROM_ReadBlock (U8, U8 *, U8);
-
-/*
+/**
  * @var eeprom_bitmap[]
- * @breif This is eeprom bitmapping
+ * @brief This is eeprom bitmapping
  *  "1" for updated value, "0" for original value
  */
 static U8 eeprom_bitmap[EE_BITMAP_SIZE];
@@ -65,7 +35,8 @@ enum {
 };
 
 
-/* @struct page_info
+/**
+ * @struct page_info
  * @breif This structure define an active page infomration
  * @var page_info::idx
  * Member 'idx' is page index within allocated pages.
@@ -80,34 +51,112 @@ struct page_info{
 	U16 tail;
 };
 
-static struct page_info page;
-
-U8 eeprom_init();
-U8 eeprom_write_byte(U8, U8);
-U8 eeprom_read_byte(U8, U8 *);
-U8 flash_page_copy();
-
-/*
- * @fn U8 eeprom_init()
- * @brief
- *   It restores the pages to good state in case of page status corruption
- * after a power loss or unwanted system reset.And also it will create bit map
- * for those address which has valid value inside. With the bit map, eeprom read
- * function can check the bit map instead of checking contents in eeprom. Which
- * will definitely save time cost.
- *
- * @return 0: success; 1: error
- */
-U8 eeprom_init()
-{
-}
-
-
+/* EEPROM bitmap operation macro definition*/
 #define EE_SET_BITMAP(addr) eeprom_bitmap[(addr) >> 3] |= 1 << ((addr) % 8)
 #define EE_CLR_BITMAP(addr) eeprom_bitmap[(addr) >> 3] &= ~(1 << ((add) % 8))
 #define EE_GET_BITMAP(addr) (eeprom_bitmap[(addr) >> 3] & (1 << ((addr) % 8)))
 
-/*
+static struct page_info page;
+
+
+/**
+ * @fn static void eeprom_format_page(U16 phy_addr)
+ * @brief erase page and write erase count plus 1 in TAG position
+ *
+ * @param phy_addr physical page address
+ *
+ * @return none
+ */
+static void eeprom_format_page(U16 phy_addr)
+{
+	UU32 erase_count;
+	/* Ignore first byte in page, it is flash status byte*/
+	erase_count.U8[1] = flash_read_byte(phy_addr + 1);
+	erase_count.U8[2] = flash_read_byte(phy_addr + 2);
+	erase_count.U8[3] = flash_read_byte(phy_addr + 3);
+	erase_count.U32++;
+
+	flash_erase_page(phy_addr);
+
+	flash_write_byte(phy_addr + 1, erase_count.U8[1]);
+	flash_write_byte(phy_addr + 2, erase_count.U8[2]);
+	flash_write_byte(phy_addr + 3, erase_count.U8[3]);
+}
+
+/**
+ * @fn static U8 eeprom_is_blank(U16 phy_addr)
+ * @brief check page whether is blank, it ignores the TAG 4 bytes.
+ * 
+ * @param phy_addr page physical address
+ * @return TRUE: page is blank; FALSE: page is not blank
+ */
+static U8 eeprom_is_blank(U16 phy_addr)
+{
+    U16 i;
+    for (i = EE_TAG_SIZE; i < FL_PAGE_SIZE; i++) {
+        if (flash_read_byte(phy_addr + i) != 0xFF) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+/**
+ * @fn static void eeprom_check_pages(void)
+ * @brief check page status, handle different page status
+ *
+ * @return none
+ */
+static void eeprom_check_pages(void)
+{
+    U8 i, status, active_pages = 0;
+    U16 phy_addr ,active_page_addr;
+    for (i = 0; i < FL_PAGES; i++) {
+        phy_addr = EE_BASE_ADDR + i * FL_PAGE_SIZE;
+        status = flash_read_byte(phy_addr);
+        switch (status) {
+            case PAGE_STATUS_RECEIVING:
+            	eeprom_format_page(phy_addr);
+                break;
+            case PAGE_STATUS_ERASED:
+                if (!eeprom_is_blank(phy_addr)) {
+                	eeprom_format_page(phy_addr);
+                }
+                break;
+            case PAGE_STATUS_ACTIVE:
+                if (active_pages) {
+                    U16 tmp = phy_addr + FL_PAGE_SIZE - EE_VARIABLE_SIZE;
+                    /* erase a full contents page*/
+                    if (flash_read_byte(tmp) == 0xFF) {
+                        flash_erase_page(phy_addr);
+                    }else{
+                        flash_erase_page(active_page_addr);
+                    }
+                } else {
+                    active_pages++;
+                    active_page_addr = phy_addr;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+
+/**
+ * @fn static void eeprom_bitmap_init()
+ * @brief init eeprom_bitmap all zero
+ * 
+ * @return none
+ */
+static void eeprom_bitmap_init()
+{
+    U8 i;
+    for (i = 0; i < EE_BITMAP_SIZE; i++) {
+        eeprom_bitmap[i] = 0;
+    }
+}
+/**
  * @fn static void eeprom_creat_bitmap(U16 phy_addr)
  * @brief create eeprom bitmap by scanning flash page
  *
@@ -128,17 +177,94 @@ static void eeprom_creat_bitmap(U16 phy_addr)
 	}
 }
 
-/*
- * @fn U8 eeprom_read_byte(U8 addr, U8 *byte)
- * @brief eeprom byte read interface
+/**
+ * @fn static void eeprom_update_page_info(U8 idx, U16 phy_addr, U16 tail)
+ * @brief update page structure
  *
- * It read a byte from eeprom
+ * @param idx current active page index number
+ * @param phy_addr current active page physical address
+ * @param tail current active page write pointer position
  *
- * @param addr address in eeprom for data read out.
- * @param *byte pointer to byte data read from eeprom.
- *
- * @return 0: success; 1: error
+ * @return none
  */
+static void eeprom_update_page_info(U8 idx, U16 phy_addr, U16 tail)
+{
+	page.idx = idx;
+	page.addr = phy_addr;
+	page.tail = tail;
+}
+
+/**
+ * @fn static U16 eeprom_get_next_page(U8 page_idx)
+ * @brief get next available page
+ * 
+ * @param page_idx page index number
+ *
+ * @return Next available page address.
+ */
+static U16 eeprom_get_next_page(U8 page_idx)
+{
+	U16 dest;
+	U8 idx = (page_idx + 1) % FL_PAGES;
+	dest =  EE_BASE_ADDR + idx * FL_PAGE_SIZE;
+	return dest;
+}
+
+/**
+ * @fn void flash_copy_page()
+ * @brief move valid data from one page to another page.
+ *
+ * This will be called when an active page is full. It copies data from source page
+ * to destination page.
+ *
+ * @return none
+ */
+static void flash_copy_page()
+{
+	U16 src, dest, tail;
+	U8 log_addr,tmp;
+
+	/* Source page scan start from bottom*/
+	src = page.addr + FL_PAGE_SIZE - EE_VARIABLE_SIZE;
+
+	dest = eeprom_get_next_page(page.idx);
+	/* Mark destination page as receiving status */
+	flash_write_byte(dest,PAGE_STATUS_RECEIVING);
+	tail = dest + EE_TAG_SIZE;
+	/* Read data from source page and copy it to destination page*/
+	while (src > (page.addr + EE_TAG_SIZE)) {
+		log_addr = flash_read_byte(src);
+		if (log_addr < EE_SIZE) {
+			/* Once we copy one data from source page, we clear it in bitmap.
+			 * Then we will copy latest copy only for that data*/
+			if (EE_GET_BITMAP(log_addr)) {
+				tmp = flash_read_byte(src);
+                flash_write_byte(tail, tmp);
+				tmp = flash_read_byte(src + 1);
+                flash_write_byte(tail + 1, tmp);
+				tail += EE_VARIABLE_SIZE;
+				EE_CLR_BITMAP(log_addr);
+			}
+		}
+		src -= EE_VARIABLE_SIZE;
+	}
+    /* Mark destination page as active status and create bitmap for it*/
+	flash_write_byte(dest,PAGE_STATUS_ACTIVE);
+	eeprom_creat_bitmap(dest);
+
+	/* Erase source page and update erase count in page TAG position*/
+	eeprom_format_page(page.addr);
+	U8 idx = (page.idx + 1) % FL_PAGES;
+	eeprom_update_page_info(idx, dest,tail);
+}
+
+U8 eeprom_init()
+{
+    eeprom_update_page_info(0,EE_BASE_ADDR,0);
+    eeprom_bitmap_init();
+    eeprom_check_pages();
+}
+
 U8 eeprom_read_byte(U8 log_addr, U8 *byte)
 {
 	if (log_addr >= EE_SIZE)
@@ -161,17 +287,7 @@ U8 eeprom_read_byte(U8 log_addr, U8 *byte)
 	return ERROR;
 }
 
-/*
- * @fn U8 eeprom_write_byte(U8 log_addr, U8 byte)
- * @brief eeprom byte write interface
- *
- * It writes a byte to eeprom
- *
- * @param log_addr address in eeprom for data write in.
- * @param byte byte data write into eeprom.
- *
- * @return 0: success; 1: error
- */
+
 U8 eeprom_write_byte(U8 log_addr, U8 byte)
 {
 	if (log_addr >= EE_SIZE)
@@ -181,376 +297,11 @@ U8 eeprom_write_byte(U8 log_addr, U8 byte)
 		flash_copy_page();
 
 	U16 phy_addr = page.tail + page.addr;
-	flash_write_byte(phy_addr,log_addr);
-	flash_write_byte(phy_addr + EE_ADDR_SIZE,byte);
+	flash_write_byte(phy_addr, log_addr);
+	flash_write_byte(phy_addr, byte);
 	page.tail += EE_VARIABLE_SIZE;
-
 	EE_SET_BITMAP(phy_addr);
 	return SUCCESS;
-}
-/*
- * @fn static void eeprom_format_page(U16 phy_addr)
- * @brief erase page and write erase count plus 1 in TAG position
- *
- * @param phy_addr physical page address
- *
- * @return none
- */
-static void eeprom_format_page(U16 phy_addr)
-{
-	U32 erase_count;
-	erase_count = (flash_read_dword(phy_addr) + 1) | 0xFF000000;
-	flash_erase_page(phy_addr);
-	flash_write_dword(phy_addr, erase_count);
-}
-
-static void eeprom_update_page_info(U8 idx, U16 phy_addr, U16 tail)
-{
-	page.idx = idx;
-	page.addr = phy_addr;
-	page.tail = tail;
-}
-
-static U16 eeprom_get_next_page(U8 page_idx)
-{
-	U16 dest;
-	U8 idx = (page_idx + 1) % FL_PAGES;
-	dest =  EE_BASE_ADDR + idx * FL_PAGE_SIZE;
-	return dest;
-}
-
-/*
- * @fn U8 flash_copy_page()
- * @brief move valid data from one page to another page.
- *
- * This will be called when an active page is full. It copies data from source page
- * to destination page.
- *
- * @return 0: success; 1: error
- */
-static U8 flash_copy_page()
-{
-	U16 src, dest, tail;
-	U8 log_addr, ee_data;
-
-	/* Source page scan start from bottom*/
-	src = page.addr + FL_PAGE_SIZE - EE_VARIABLE_SIZE;
-
-	dest = eeprom_get_next_page(page.idx);
-	/* Mark destination page as receiving status */
-	flash_write_byte(dest,PAGE_STATUS_RECEIVING);
-	tail = dest + EE_TAG_SIZE;
-	/* Read data from source page and copy it to destination page*/
-	while (src > (page.addr + EE_TAG_SIZE)) {
-		log_addr = flash_read_byte(src);
-		if ((log_addr != 0xFF) && (log_addr < EE_SIZE)) {
-			/* Once we copy one data from source page, we clear it in bitmap.
-			 * Then we will copy latest copy only for that data*/
-			if (EE_GET_BITMAP(log_addr)) {
-				ee_data = flash_read_byte(src + EE_ADDR_SIZE);
-				flash_write_byte(tail,log_addr);
-				flash_write_byte(tail + EE_ADDR_SIZE,ee_data);
-				tail += EE_VARIABLE_SIZE;
-				EE_CLR_BITMAP(log_addr);
-			}
-		}
-		src -= EE_VARIABLE_SIZE;
-	}
-
-	flash_write_byte(dest,PAGE_STATUS_ACTIVE);
-	eeprom_creat_bitmap(dest);
-
-	/* Erase source page and update erase count in page TAG position*/
-	eeprom_format_page(page.addr);
-	ee_data = (page.idx + 1) % FL_PAGES;
-	eeprom_update_page_info(ee_data, dest,tail);
-}
-
-//-----------------------------------------------------------------------------
-// EEPROM_WriteBlock
-//-----------------------------------------------------------------------------
-//
-// This routine writes the specified array into the emulated EEPROM by
-// decoding the address and calling flash write functions.
-//
-// Arguments :  U8 address - 8-bit EEPROM address to start at
-//              U8 *dataBuf - pointer to data array
-//              U8 length - number of bytes to write
-//
-// Returns U8 : EE_NO_ERROR = Write was sucessful
-//              EE_WRITE_ERROR = Write did not succeed, due to either a page
-//                erase problem or an out-of-bounds address.
-//              EE_SECTOR_ERROR = Could not determine current sector.
-//
-U8 EEPROM_WriteBlock (U8 address, U8 *dataBuf, U8 length)
-{
-   U16 readAddr, writeAddr;
-   U8 nextSector;
-   U8 currentTag;
-   U8 byteCount;
-   U8 pageEraseCounter;
-
-   if ((U16)(address+length) > EE_SIZE)
-   {
-      return EE_WRITE_ERROR;
-   }
-
-   currentTag = findCurrentSector();
-   if (currentTag == NO_TAG)
-   {
-      return EE_SECTOR_ERROR;
-   }
-
-   // Get the current sector's base address for read (copy) later
-   readAddr = getBaseAddress(currentEepromPage, currentEepromSector);
-
-   nextSector = findNextSector();
-
-   // Get base address of sector where we will be writing
-   writeAddr = getBaseAddress(currentEepromPage, currentEepromSector);
-
-   if (nextSector == 0x00)
-   {
-      pageEraseCounter = 0;
-
-      while (pageEraseCounter < FL_ERASE_LIMIT)
-      {
-         FLASH_WriteErase (writeAddr, 0xFF, FL_ERASE);
-         if (!FLASH_BlankCheck(writeAddr))
-         {
-            if (++pageEraseCounter == FL_ERASE_LIMIT)
-            {
-               return EE_WRITE_ERROR;
-            }
-         }
-         else
-         {
-            break;
-         }
-      }
-   }
-
-   // Mark new sector as copy in progress
-   FLASH_WriteErase (writeAddr + TAG_OFFSET, WIP_TAG, FL_WRITE);
-
-   // Copy from old to new sector excluding copy addresses
-   copySector(readAddr, writeAddr, address, length);
-
-   // Write new info to sector
-   for (byteCount = 0; byteCount < length; byteCount++)
-   {
-      FLASH_WriteErase (writeAddr + address + byteCount, *dataBuf++, FL_WRITE);
-   }
-   if (currentTag == DONE_TAG_MAX)
-   {
-      currentTag = DONE_TAG_MIN;
-   }
-   else
-   {
-      currentTag++;
-   }
-
-   // Mark new sector with valid tag
-   FLASH_WriteErase (writeAddr + TAG_OFFSET, currentTag, FL_WRITE);
-
-   return EE_NO_ERROR;
-}
-
-//-----------------------------------------------------------------------------
-// EEPROM_ReadBlock
-//-----------------------------------------------------------------------------
-//
-// This routine reads the emulated EEPROM information into the specified
-// buffer.
-//
-// Arguments :  U8 address - 8-bit EEPROM address to start at
-//              U8 *dataBuf - pointer to data array
-//              U8 length - number of bytes to read
-//
-// Returns U8 : EE_NO_ERROR = Read was sucessful
-//              EE_READ_ERROR = Read did not succeed, due to  out-of-bounds
-//                 address.
-//              EE_SECTOR_ERROR = Could not determine current sector.
-//
-U8 EEPROM_ReadBlock (U8 address, U8 *dataBuf, U8 length)
-{
-   U16 sectorAddress;
-   U8 byteCount;
-
-   if ((U16)(address+length) > EE_SIZE)
-   {
-      return EE_READ_ERROR;
-   }
-   if (findCurrentSector() == 0x00)
-   {
-      return EE_SECTOR_ERROR;
-   }
-   sectorAddress = getBaseAddress(currentEepromPage, currentEepromSector);
-   // Read data bytes
-   for (byteCount = 0; byteCount < length; byteCount++)
-   {
-      *dataBuf++ = FLASH_Read(sectorAddress+address+byteCount);
-   }
-   return EE_NO_ERROR;
-}
-
-
-//-----------------------------------------------------------------------------
-// copySector
-//-----------------------------------------------------------------------------
-//
-// This internal routine copies the contents of one sector to another, while
-// excluding the addresses about to be written.
-//
-// Arguments :  U16 fromAddr - 16-bit Flash address to copy from
-//              U16 toAddr - 16-bit Flash addres to copy to
-//              U8 exclude - Starting EEPROM address to exclude for copy.
-//              U8 length - Number of bytes to exlude from copy.
-//
-// Returns :    None
-//
-void copySector(U16 fromAddr, U16 toAddr, U8 exclude, U8 length)
-{
-   U8 offset_addr;
-   U8 copy_byte;
-
-   for (offset_addr = 0; offset_addr < EE_SIZE; offset_addr++)
-   {
-      //copy_byte = *((U8 SEG_CODE *) (fromAddr+offset_addr));
-      copy_byte = FLASH_Read(fromAddr+offset_addr);
-      
-      if ((offset_addr < exclude)||(offset_addr >= exclude+length))
-      {
-         FLASH_WriteErase ((toAddr+offset_addr), copy_byte, FL_WRITE);
-      }
-   }
-}
-
-//-----------------------------------------------------------------------------
-// findNextSector
-//-----------------------------------------------------------------------------
-//
-// This internal routine finds the next available sector in the EEPROM area
-// and updates the currentEepromPage and currentEepromSector variables.
-//
-// Arguments :  None
-//
-// Returns U8 : 0 if next page needs to be erased, 1 if empty sector found
-//
-U8 findNextSector(void)
-{
-   U8 pageNow = currentEepromPage, sectorNow = currentEepromSector;
-   U8 sectorFound = 2;
-   U8 sectTag;
-   U16 sectorAddress;
-
-   while (sectorFound == 2)
-   {
-      currentEepromSector++;
-      if (currentEepromSector == EE_SECTORS)
-      {
-         currentEepromSector = 0;
-         currentEepromPage++;
-         if (currentEepromPage == FL_PAGES)
-         {
-            currentEepromPage = 0;
-         }
-      }
-      sectorAddress = getBaseAddress(currentEepromPage, currentEepromSector);
-      sectTag = FLASH_Read(sectorAddress+TAG_OFFSET);
-      if (sectTag == NEW_TAG)
-      {
-         sectorFound = 1;
-      }
-      else if ((pageNow == currentEepromPage)&&
-               (sectorNow == currentEepromSector))
-      {
-         currentEepromSector = 0;
-         currentEepromPage++;
-         if (currentEepromPage == FL_PAGES)
-         {
-            currentEepromPage = 0;
-         }
-         sectorFound = 0;
-      }
-   }
-   return sectorFound;
-}
-
-//-----------------------------------------------------------------------------
-// findCurrentSector
-//-----------------------------------------------------------------------------
-//
-// This internal routine finds the currently used sector in the EEPROM area
-// and updates the currentEepromPage and currentEepromSector variables.
-//
-// Arguments :  None
-//
-// Returns U8 : 0 if sector could not be determined, sector tag if sector
-//              was found
-//
-U8 findCurrentSector(void)
-{
-   U8 pgCount, sectCount;
-   U8 emptySectors = 0;
-   U8 sectTag = NO_TAG, latestTag = NO_TAG, nextTag = NO_TAG;
-
-   for (pgCount = 0; pgCount < FL_PAGES; pgCount++)
-   {
-      for (sectCount = 0; sectCount < EE_SECTORS; sectCount++)
-      {
-         sectTag = FLASH_Read(getBaseAddress(pgCount, sectCount)+TAG_OFFSET);
-
-         if (sectTag == NEW_TAG)
-         {
-            emptySectors++;
-         }
-         if ((sectTag >= DONE_TAG_MIN)&&(sectTag <= DONE_TAG_MAX))
-         {
-            if ((latestTag == NO_TAG)||(sectTag == nextTag))
-            {
-               latestTag = sectTag;
-               currentEepromPage = pgCount;
-               currentEepromSector = sectCount;
-
-               if (sectTag == DONE_TAG_MAX)
-               {
-                  nextTag = DONE_TAG_MIN;
-               }
-               else
-               {
-                  nextTag = sectTag + 1;
-               }
-            }
-         }
-      }
-   }
-   // If all sectors are empty, start fresh
-   if (emptySectors == FL_PAGES*EE_SECTORS)
-   {
-      latestTag = DONE_TAG_MIN;
-      currentEepromPage = FL_PAGES-1;
-      currentEepromSector = EE_SECTORS-1;
-   }
-
-   return latestTag;
-}
-
-//-----------------------------------------------------------------------------
-// getBaseAddress
-//-----------------------------------------------------------------------------
-//
-// This internal routine calculates the base address for a Flash sector in the
-// emulated EEPROM area.
-//
-// Arguments :  U8 page - zero-based page number to calculate from.
-//              U8 sector - zero-based sector number to calculate from.
-//
-// Returns U16: 16-bit Flash address corresponding to the page and sector.
-//
-U16 getBaseAddress(U8 page, U8 sector)
-{
-   return (EE_BASE_ADDR+(FL_PAGE_SIZE*page)+(EE_SIZE+EE_TAG_SIZE)*sector);
 }
 
 //-----------------------------------------------------------------------------

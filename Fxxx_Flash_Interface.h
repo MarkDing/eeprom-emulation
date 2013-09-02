@@ -1,45 +1,52 @@
-//-----------------------------------------------------------------------------
-// Fxxx_Flash_Interface.h
-//-----------------------------------------------------------------------------
-// Copyright (C) 2010 Silicon Laboratories, Inc.
-// http://www.silabs.com
-//
-// File Description:
-//
-// This file is the header to include all external functions and variables
-// defined in the Flash_Interface.c files.  The appropriate flash interface
-// code file for the device should be included in the project.
-//
-// Release 1.0 / 10NOV2010 (BD)
-//    -Initial Revision
-//
-
+/**
+ * @file Fxxx_Flash_Interface.h
+ * @brief Flash read/write/erase interface of EEPROM emulation.
+ *
+ * @date 2 Sep 2013
+ * @version 1.0
+ * @author Mark Ding
+ *
+ ******************************************************************************
+ * @section License
+ * <b>Copyright (c) 2013 by Silicon Laboratories. http://www.silabs.com</b>
+ ******************************************************************************
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Silicon Laboratories End User
+ * License Agreement which accompanies this distribution, and is available at
+ * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
+ * Original content and implementation provided by Silicon Laboratories.
+ */
 #ifndef Fxxx_FLASH_INTERFACE_H
 #define Fxxx_FLASH_INTERFACE_H
 
-//-----------------------------------------------------------------------------
-// External Function PROTOTYPES
-//-----------------------------------------------------------------------------
+/**
+ * @fn void flash_erase_page(U16 address)
+ * @brief erase a flash page.
+ *
+ * @param address flash page address to be erased
+ *
+ */
+extern void flash_erase_page(U16);
 
-extern void FLASH_WriteErase (U16, S8, S8);
-extern U8 FLASH_BlankCheck(U16);
-extern U8 FLASH_Read (U16);
+/**
+ * @fn void flash_write_byte(U16 address, U8 byte)
+ * @brief Write a byte into flash.
+ *
+ * @param address physical address in flash
+ * @param dat data byte to write
+ */
+extern void flash_write_byte(U16, U8);
 
-//-----------------------------------------------------------------------------
-// External Variables
-//-----------------------------------------------------------------------------
+/**
+ * @fn U8 flash_read_byte(U16 address)
+ * @brief Read a byte from flash
+ *
+ * @param address physical address in flash
+ * @return dat data byte read from flash
+ */
+extern U8  flash_read_byte(U16);
 
-extern SEGMENT_VARIABLE(FlashKey1, U8, SEG_DATA);
-extern SEGMENT_VARIABLE(FlashKey2, U8, SEG_DATA);
-
-//-----------------------------------------------------------------------------
-// External Constants
-//-----------------------------------------------------------------------------
-
-#define FL_WRITE        0x01        // PSCTL mask for Flash Writes
-#define FL_ERASE        0x03        // PSCTL mask for Flash Erase
-
-#endif // #ifndef Fxxx_FLASH_INTERFACE_H
+#endif
 
 //-----------------------------------------------------------------------------
 // End Of File

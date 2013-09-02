@@ -1,18 +1,21 @@
-//-----------------------------------------------------------------------------
-// Fxxx_EEPROM_Configuration.h
-//-----------------------------------------------------------------------------
-// Copyright (C) 2010 Silicon Laboratories, Inc.
-// http://www.silabs.com
-//
-// File Description:
-//
-// This file defines all of the EEPROM parameters for the EEPROM emulation
-// example code.
-//
-// Release 1.0 / 10NOV2010 (BD)
-//    -Initial Revision
-//
-
+/**
+ * @file Fxxx_EEPROM_Configuration.h
+ * @brief Defines all of the EEPROM parameters for the EEPROM emualtion.
+ *
+ * @date 2 Sep 2013
+ * @version 1.0
+ * @author Mark Ding
+ *
+ ******************************************************************************
+ * @section License
+ * <b>Copyright (c) 2013 by Silicon Laboratories. http://www.silabs.com</b>
+ ******************************************************************************
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Silicon Laboratories End User
+ * License Agreement which accompanies this distribution, and is available at
+ * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
+ * Original content and implementation provided by Silicon Laboratories.
+ */
 #ifndef Fxxx_EEPROM_CONFIGURATION_H
 #define Fxxx_EEPROM_CONFIGURATION_H
 
@@ -68,24 +71,18 @@
 //
 
 #define EE_TOP_ADDR     EE_BASE_ADDR + (FL_PAGES*FL_PAGE_SIZE) - 1
-#define EE_TAG_SIZE     4           // Number of bytes used for tag info
-#define TAG_OFFSET      EE_SIZE     // Sector tag offset from base
+#define EE_TAG_SIZE     4    // Number of bytes used for tag info
 
-#define EE_SECTORS      (U8)(FL_PAGE_SIZE/(EE_SIZE+EE_TAG_SIZE))
-
-#define EE_DATA_SIZE        1 // 8 bit data
-#define EE_ADDR_SIZE        1 // 8 bit addr
-#define EE_VARIABLE_SIZE    (EE_DATA_SIZE + EE_ADDR_SIZE)
+#define EE_VARIABLE_SIZE    2
 
 #define SUCCESS 0x00
 #define ERROR   0x01
 
-#define EE_NO_ERROR     0x00
-#define EE_WRITE_ERROR  0x01
-#define EE_SECTOR_ERROR 0x02
-#define EE_READ_ERROR   0x03
+#define TRUE 	0x01
+#define FALSE	0x00
 
-#endif // #ifndef Fxxx_EEPROM_CONFIGURATION_H
+
+#endif
 
 //-----------------------------------------------------------------------------
 // End Of File

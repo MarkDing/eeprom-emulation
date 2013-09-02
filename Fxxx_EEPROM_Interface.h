@@ -1,29 +1,63 @@
-//-----------------------------------------------------------------------------
-// Fxxx_EEPROM_Interface.h
-//-----------------------------------------------------------------------------
-// Copyright (C) 2010 Silicon Laboratories, Inc.
-// http://www.silabs.com
-//
-// File Description:
-//
-// This file is the header to include all external functions and variables for
-// the emulated EEPROM interface defined in Fxxx_EEPROM_Interface.c.
-//
-//
-// Release 1.0 / 10NOV2010 (BD)
-//    -Initial Revision
-//
-
+/**
+ * @file Fxxx_EEPROM_Interface.h
+ * @brief Header file of EEPROM emulator interface.
+ *
+ * @date 2 Sep 2013
+ * @version 1.0
+ * @author Mark Ding
+ *
+ ******************************************************************************
+ * @section License
+ * <b>Copyright (c) 2013 by Silicon Laboratories. http://www.silabs.com</b>
+ ******************************************************************************
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Silicon Laboratories End User
+ * License Agreement which accompanies this distribution, and is available at
+ * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
+ * Original content and implementation provided by Silicon Laboratories.
+ */
 #ifndef Fxxx_EEPROM_INTERFACE_H
 #define Fxxx_EEPROM_INTERFACE_H
+/**
+ * @fn U8 eeprom_init()
+ * @brief
+ *   It restores the pages to good state in case of page status corruption
+ * after a power loss or unwanted system reset.And also it will create bit map
+ * for those address which has valid value inside. With the bit map, eeprom read
+ * function can check the bit map instead of checking contents in eeprom. Which
+ * will definitely save time cost.
+ *
+ * @return 0: success; 1: error
+ */
+extern U8 eeprom_init();
 
-//-----------------------------------------------------------------------------
-// External Function PROTOTYPES
-//-----------------------------------------------------------------------------
-extern U8 EEPROM_WriteBlock (U8, U8 *, U8);
-extern U8 EEPROM_ReadBlock (U8, U8 *, U8);
+/**
+ * @fn U8 eeprom_write_byte(U8 log_addr, U8 byte)
+ * @brief eeprom byte write interface
+ *
+ * It writes a byte to eeprom
+ *
+ * @param log_addr address in eeprom for data write in.
+ * @param byte byte data write into eeprom.
+ *
+ * @return 0: success; 1: error
+ */
+extern U8 eeprom_write_byte(U8, U8);
 
-#endif // #ifndef Fxxx_EEPROM_INTERFACE_H
+/**
+ * @fn U8 eeprom_read_byte(U8 addr, U8 *byte)
+ * @brief eeprom byte read interface
+ *
+ * It read a byte from eeprom
+ *
+ * @param addr address in eeprom for data read out.
+ * @param *byte pointer to byte data read from eeprom.
+ *
+ * @return 0: success; 1: error
+ */
+extern U8 eeprom_read_byte(U8, U8 *);
+
+#endif
 
 //-----------------------------------------------------------------------------
 // End Of File
