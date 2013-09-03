@@ -1,5 +1,5 @@
 /**
- * @file Fxxx_Flash_Interface.c
+ * @file flash.c
  * @brief Flash read/write/erase interface of EEPROM emulation.
  *
  * @date 2 Sep 2013
@@ -16,8 +16,8 @@
  * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
  * Original content and implementation provided by Silicon Laboratories.
  */
-#include "Fxxx_EEPROM_Configuration.h"
-#include "Fxxx_Flash_Interface.h"
+#include "eeprom_config.h"
+#include "flash.h"
 
 
 /* Global variables*/
@@ -57,7 +57,7 @@ static void flash_setup_key(U8 key1, U8 key2, U16 address)
  */
 static void flash_write_erase(U16 address, U8 byte, U8 write_erase)
 {
-	bit EA_SAVE = EA;                   // preserve EA
+	bit EA_SAVE = EA;
 	SEGMENT_VARIABLE_SEGMENT_POINTER(pwrite, U8, SEG_XDATA, SEG_DATA);
 	PSBANK_STORE()
 	SFRPAGE_SWITCH()
@@ -68,26 +68,27 @@ static void flash_write_erase(U16 address, U8 byte, U8 write_erase)
 		return;
 	}
 	ENABLE_VDDMON()
-	EA = 0;                             // disable interrupts
+	EA = 0;
 
 	flash_setup_key(0xA5, 0xF1, address);
 	pwrite = (U8 SEG_XDATA *) flashAddress;
 	PSBANK_SWITCH()
 	ENABLE_FL_MOD()
-	PSCTL |= (write_erase & 0x03);  // set up PSEE, PSWE
-	*pwrite = byte;                 // write the byte
-	PSCTL &= ~0x03;                 // clear PSEE and PSWE
+	/* setup PSEE, PSWE */
+	PSCTL |= (write_erase & 0x03);
+	*pwrite = byte;
+	PSCTL &= ~0x03;
 	DISABLE_FL_MOD()
 	PSBANK_RESTORE()
 
 	flash_setup_key(0x00,0x00,FLASH_SAFE_ADDR);
-	EA = EA_SAVE;                       // restore interrupts
+	EA = EA_SAVE;
 	SFRPAGE_RESTORE()
 }
 
 void flash_erase_page(U16 address)
 {
-	flash_write_erase(address, FL_ERASE);
+	flash_write_erase(address,0, FL_ERASE);
 }
 
 void flash_write_byte(U16 address, U8 dat)

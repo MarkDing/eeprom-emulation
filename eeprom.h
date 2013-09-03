@@ -1,5 +1,5 @@
 /**
- * @file Fxxx_EEPROM_Interface.h
+ * @file eeprom.h
  * @brief Header file of EEPROM emulator interface.
  *
  * @date 2 Sep 2013
@@ -16,8 +16,8 @@
  * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
  * Original content and implementation provided by Silicon Laboratories.
  */
-#ifndef Fxxx_EEPROM_INTERFACE_H
-#define Fxxx_EEPROM_INTERFACE_H
+#ifndef __EEPROM_H__
+#define __EEPROM_H__
 /**
  * @fn U8 eeprom_init()
  * @brief

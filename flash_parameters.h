@@ -1,57 +1,68 @@
-//-----------------------------------------------------------------------------
-// Fxxx_Flash_Parameters.h
-//-----------------------------------------------------------------------------
-// Copyright (C) 2010 Silicon Laboratories, Inc.
-// http://www.silabs.com
-//
-// File Description:
-//
-// This file is used to define the Flash parameters for the selected device,
-// include the appropriate device header files, and provide macros for enabling
-// the VDD monitor, disabling the watchdog timer, switching SFRPAGE and PSBANK
-// where applicable, and enabling /disabling flash writes and erases.
-//
-// These macros are used in the Fxxx_Flash_Interface.c file to enable building
-// the code on different C8051Fxxx platforms.  Devices with 2kB or less of
-// Flash are defined in the file but not supported, and will throw an error.
-//
-// The device being used should be defined where indicated in the "External
-// Constants" section of this file.
-//
-// This file defines parameters for the following device families :
-//
-// C8051F00x/01x
-// C8051F02x
-// C8051F04x
-// C8051F06x
-// C8051F12x/13x
-// C8051F2xx
-// C8051F30x
-// C8051F31x
-// C8051F320/1
-// C8051F326/7
-// C8051F33x
-// C8051F34x
-// C8051F35x
-// C8051F36x
-// C8051F41x
-// C8051F50x/51x
-// C8051F52xA/53xA
-// C8051F54x
-// C8051F55x/56x/57x
-// C8051F58x/59x
-// C8051F70x/71x
-// C8051F80x/81x/82x/83x
-// C8051F90x/91x
-// C8051F92x/93x
-// C8051F98x/99x
-//
-// Release 1.0 / 15NOV2010 (BD)
-//    -Initial Revision
-//
-
-#ifndef Fxxx_FLASH_PARAMETERS_H
-#define Fxxx_FLASH_PARAMETERS_H
+/**
+ * @file flash_parameters.h
+ * @brief
+ * This file is used to define the Flash parameters for the selected device,
+ * include the appropriate device header files, and provide macros for enabling
+ * the VDD monitor, disabling the watchdog timer, switching SFRPAGE and PSBANK
+ * where applicable, and enabling /disabling flash writes and erases.
+ *
+ * These macros are used in the flash.c file to enable building
+ * the code on different C8051Fxxx platforms.  Devices with 2kB or less of
+ * Flash are defined in the file but not supported, and will throw an error.
+ *
+ * The device being used should be defined where indicated in the "External
+ * Constants" section of this file.
+ *
+ * This file defines parameters for the following device families :
+ *
+ * C8051F00x/01x
+ * C8051F02x
+ * C8051F04x
+ * C8051F06x
+ * C8051F12x/13x
+ * C8051F2xx
+ * C8051F30x
+ * C8051F31x
+ * C8051F320/1
+ * C8051F326/7
+ * C8051F33x
+ * C8051F34x
+ * C8051F35x
+ * C8051F36x
+ * C8051F41x
+ * C8051F50x/51x
+ * C8051F52xA/53xA
+ * C8051F54x
+ * C8051F55x/56x/57x
+ * C8051F58x/59x
+ * C8051F70x/71x
+ * C8051F80x/81x/82x/83x
+ * C8051F85x/86x
+ * C8051F90x/91x
+ * C8051F92x/93x
+ * C8051F98x/99x
+ *
+ * Release 1.1 / 3SEP2013 (MD)
+ *    -Add F85x/86x
+ * Release 1.0 / 15NOV2010 (BD)
+ *    -Initial Revision
+ *
+ * @date 03 Sep 2013
+ * @version 1.1
+ * @author Mark Ding
+ *
+ ******************************************************************************
+ * @section License
+ * <b>Copyright (c) 2013 by Silicon Laboratories. http://www.silabs.com</b>
+ ******************************************************************************
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Silicon Laboratories End User
+ * License Agreement which accompanies this distribution, and is available at
+ * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
+ * Original content and implementation provided by Silicon Laboratories.
+ */
+#ifndef __FLASH_PARAMETERS_H__
+#define __FLASH_PARAMETERS_H__
 
 #include <compiler_defs.h>
 
@@ -62,7 +73,7 @@
 
 // Define the device being used (without suffix) below (i.e. C8051F330).  
 // A list of supported devices is found at the top of this file.
-#define C8051F930
+#define C8051F850
 
 
 //*** C8051F00x/01x ***
@@ -1124,6 +1135,53 @@
    #define FL_PROTECT()       FLKEY = 0x00;
 #endif
 
+//*** C8051F85x/86x ***
+// 8k Versions of C8051F85x/86x
+#if (defined C8051F850)||(defined C8051F853) \
+  ||(defined C8051F860)||(defined C8051F863)
+
+  #include <c8051f850_defs.h>
+  #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+  #define DISABLE_WDT()      WDTCN = 0xDE; WDTCN = 0xAD;
+  #define SFRPAGE_SWITCH()
+  #define SFRPAGE_RESTORE()
+  #define PSBANK_STORE()
+  #define PSBANK_SWITCH()
+  #define PSBANK_RESTORE()
+  #define FL_PAGE_SIZE       512
+  #define LOCK_PAGE          0x1E00
+  #define FLASH_SAFE_ADDR    0xFFFF
+  #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+  #define DISABLE_FL_MOD()
+  #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 4k Versions of C8051F85x/86x
+#if (defined C8051F851)||(defined C8051F854) \
+  ||(defined C8051F861)||(defined C8051F864)
+
+  #include <c8051f850_defs.h>
+  #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+  #define DISABLE_WDT()      WDTCN = 0xDE; WDTCN = 0xAD;
+  #define SFRPAGE_SWITCH()
+  #define SFRPAGE_RESTORE()
+  #define PSBANK_STORE()
+  #define PSBANK_SWITCH()
+  #define PSBANK_RESTORE()
+  #define FL_PAGE_SIZE       512
+  #define LOCK_PAGE          0x0E00
+  #define FLASH_SAFE_ADDR    0xFFFF
+  #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+  #define DISABLE_FL_MOD()
+  #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 2k Versions of C8051F85x/86x
+#if (defined C8051F852)||(defined C8051F855) \
+  ||(defined C8051F862)||(defined C8051F865)
+  #error "Not enough code-eraseable flash to support this function."
+#endif
+
 //*** C8051F90x/91x ***
 // 16k Versions of C8051F90x/91x
 #if (defined C8051F911)||(defined C8051F912)
@@ -1254,7 +1312,7 @@
    #error "Specified device definition not found."
 #endif
 
-#endif // #ifndef Fxxx_FLASH_PARAMETERS_H
+#endif
 
 //-----------------------------------------------------------------------------
 // End Of File

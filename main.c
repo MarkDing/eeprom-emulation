@@ -1,8 +1,8 @@
 /**
- * @file Fxxx_Flash_Interface.h
- * @brief Flash read/write/erase interface of EEPROM emulation.
+ * @file main.c
+ * @brief his file is a simple example usage of the EEPROM Emulation firmware.
  *
- * @date 2 Sep 2013
+ * @date 3 Sep 2013
  * @version 1.0
  * @author Mark Ding
  *
@@ -16,37 +16,25 @@
  * http://developer.silabs.com/legal/version/v10/License_Agreement_v10.htm
  * Original content and implementation provided by Silicon Laboratories.
  */
-#ifndef Fxxx_FLASH_INTERFACE_H
-#define Fxxx_FLASH_INTERFACE_H
+#include "compiler_defs.h"
+#include "eeprom_config.h"
+#include "eeprom.h"
 
-/**
- * @fn void flash_erase_page(U16 address)
- * @brief erase a flash page.
- *
- * @param address flash page address to be erased
- *
- */
-extern void flash_erase_page(U16);
-
-/**
- * @fn void flash_write_byte(U16 address, U8 byte)
- * @brief Write a byte into flash.
- *
- * @param address physical address in flash
- * @param dat data byte to write
- */
-extern void flash_write_byte(U16, U8);
-
-/**
- * @fn U8 flash_read_byte(U16 address)
- * @brief Read a byte from flash
- *
- * @param address physical address in flash
- * @return dat data byte read from flash
- */
-extern U8  flash_read_byte(U16);
-
-#endif
+void main (void) 
+{
+	U8 tmp;
+    SFRPAGE_SWITCH()
+    ENABLE_VDDMON()
+    DISABLE_WDT()
+    SFRPAGE_RESTORE()
+    eeprom_init();
+    eeprom_read_byte(0, &tmp);
+    tmp = 0x55;
+    eeprom_write_byte(0,tmp);
+    tmp = 0;
+    eeprom_read_byte(0, &tmp);
+    while(1);
+}
 
 //-----------------------------------------------------------------------------
 // End Of File
