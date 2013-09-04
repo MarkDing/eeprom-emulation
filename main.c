@@ -20,19 +20,31 @@
 #include "eeprom_config.h"
 #include "eeprom.h"
 
+U8 test_buf[32];
 void main (void) 
 {
+	U16 i;
 	U8 tmp;
     SFRPAGE_SWITCH()
     ENABLE_VDDMON()
     DISABLE_WDT()
     SFRPAGE_RESTORE()
     eeprom_init();
-    eeprom_read_byte(0, &tmp);
-    tmp = 0x55;
-    eeprom_write_byte(0,tmp);
+    for(i=0;i< EE_SIZE ;i++) {
+    	eeprom_read_byte(i,&test_buf[i]);
+    }
+    for(i=0;i< EE_SIZE - 2;i++) {
+    	test_buf[i] = i;
+    	eeprom_write_byte(i, test_buf[i]);
+    }
     tmp = 0;
-    eeprom_read_byte(0, &tmp);
+    while(tmp < 20){
+        for(i=0;i< EE_SIZE - 2;i++) {
+        	test_buf[i] = i + 1;
+        	eeprom_write_byte(i, test_buf[i]);
+        }
+        tmp++;
+    }
     while(1);
 }
 
