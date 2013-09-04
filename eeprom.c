@@ -38,7 +38,7 @@ enum {
 
 /**
  * @struct page_info
- * @breif This structure define an active page infomration
+ * @brief This structure define an active page infomration
  * @var page_info::idx
  * Member 'idx' is page index within allocated pages.
  * @var page_info::addr

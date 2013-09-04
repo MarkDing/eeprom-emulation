@@ -42,20 +42,20 @@ extern U8 eeprom_init();
  *
  * @return 0: success; 1: error
  */
-extern U8 eeprom_write_byte(U8, U8);
+extern U8 eeprom_write_byte(U8 log_addr, U8 byte);
 
 /**
- * @fn U8 eeprom_read_byte(U8 addr, U8 *byte)
+ * @fn U8 eeprom_read_byte(U8 log_addr, U8 *byte)
  * @brief eeprom byte read interface
  *
  * It read a byte from eeprom
  *
- * @param addr address in eeprom for data read out.
+ * @param log_addr address in eeprom for data read out.
  * @param *byte pointer to byte data read from eeprom.
  *
  * @return 0: success; 1: error
  */
-extern U8 eeprom_read_byte(U8, U8 *);
+extern U8 eeprom_read_byte(U8 log_addr, U8 *byte);
 
 #endif
 
