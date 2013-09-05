@@ -29,6 +29,8 @@
  * C8051F34x
  * C8051F35x
  * C8051F36x
+ * C8051F37x/39x
+ * C8051F38x
  * C8051F41x
  * C8051F50x/51x
  * C8051F52xA/53xA
@@ -40,10 +42,11 @@
  * C8051F85x/86x
  * C8051F90x/91x
  * C8051F92x/93x
+ * C8051F96x
  * C8051F98x/99x
  *
- * Release 1.1 / 3SEP2013 (MD)
- *    -Add F85x/86x
+ * Release 1.1 / 5SEP2013 (MD)
+ *    -Add F85x/86x, F38x. F37x/39x, F96x
  * Release 1.0 / 15NOV2010 (BD)
  *    -Initial Revision
  *
@@ -736,6 +739,109 @@
    #define FL_PROTECT()       FLKEY = 0x00;
 #endif
 
+//*** C8051F37x/39x ***
+// 16k Versions of C8051F37x/39x
+#if (defined C8051F370)||(defined C8051F371) \
+  ||(defined C8051F390)||(defined C8051F391) \
+  ||(defined C8051F392)||(defined C8051F393)
+
+   #include <c8051f390_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       512
+   #define LOCK_PAGE          0x3E00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 8k Versions of C8051F37x/39x
+#if (defined C8051F374)||(defined C8051F375) \
+  ||(defined C8051F394)||(defined C8051F395) \
+  ||(defined C8051F396)||(defined C8051F397)
+
+   #include <c8051f390_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       512
+   #define LOCK_PAGE          0x1E00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 4k Versions of C8051F37x/39x
+#if (defined C8051F398)||(defined C8051F399)
+
+   #include <c8051f390_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       512
+   #define LOCK_PAGE          0x0E00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+//*** C8051F38x ***
+// 64k Versions of C8051F38x
+#if (defined C8051F380)||(defined C8051F381) \
+  ||(defined C8051F384)||(defined C8051F385)
+
+   #include <c8051f380_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       512
+   #define LOCK_PAGE          0xFA00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 32k Versions of C8051F38x
+#if (defined C8051F382)||(defined C8051F383) \
+  ||(defined C8051F386)||(defined C8051F387)
+
+   #include <c8051f380_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       512
+   #define LOCK_PAGE          0x7E00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
 //*** C8051F41x ***
 // 32k Versions of C8051F41x
 #if (defined C8051F410)||(defined C8051F411)
@@ -1254,6 +1360,84 @@
    #define PSBANK_RESTORE()
    #define FL_PAGE_SIZE       1024
    #define LOCK_PAGE          0x7C00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+   //*** C8051F96x ***
+// 128k Versions of C8051F96x
+#if (defined C8051F960)||(defined C8051F961) \
+  ||(defined C8051F962)||(defined C8051F963)
+
+   #include <c8051f960_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()     U8 bankSave = PSBANK;
+   #define PSBANK_SWITCH()    PSBANK |= 0x30;  // bank 3
+   #define PSBANK_RESTORE()   PSBANK = bankSave;
+   #define FL_PAGE_SIZE       1024
+   #define LOCK_PAGE          0xFC00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 64k Versions of C8051F96x
+#if (defined C8051F964)||(defined C8051F965)
+
+   #include <c8051f960_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       1024
+   #define LOCK_PAGE          0xFC00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 32k Versions of C8051F96x
+#if (defined C8051F966)||(defined C8051F967)
+
+   #include <c8051f960_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       1024
+   #define LOCK_PAGE          0x7C00
+   #define FLASH_SAFE_ADDR    0xFFFF
+   #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
+   #define DISABLE_FL_MOD()
+   #define FL_PROTECT()       FLKEY = 0x00;
+#endif
+
+// 16k Versions of C8051F96x
+#if (defined C8051F968)||(defined C8051F969)
+
+   #include <c8051f960_defs.h>
+   #define ENABLE_VDDMON()    VDM0CN = 0x80; RSTSRC = (RSTSRC_VAL | 0x02);
+   #define DISABLE_WDT()      PCA0MD &= ~0x40;
+   #define SFRPAGE_SWITCH()   U8 pageSave = SFRPAGE; SFRPAGE = 0x00;
+   #define SFRPAGE_RESTORE()  SFRPAGE = pageSave;
+   #define PSBANK_STORE()
+   #define PSBANK_SWITCH()
+   #define PSBANK_RESTORE()
+   #define FL_PAGE_SIZE       1024
+   #define LOCK_PAGE          0x3C00
    #define FLASH_SAFE_ADDR    0xFFFF
    #define ENABLE_FL_MOD()    FLKEY  = flashKey1; FLKEY  = flashKey2;
    #define DISABLE_FL_MOD()

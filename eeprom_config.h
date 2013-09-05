@@ -22,13 +22,6 @@
 #include "flash_parameters.h"
 
 /**
- * @def EE_BASE_ADDR
- * @brief This should point to the memory location where the EEPROM
- *  storage area begins.  This must coincide with the start of a Flash page.
- */
-#define EE_BASE_ADDR    0x1A00
-
-/**
  * @def FL_PAGES
  * @brief This constant detemines how many pages of Flash to use for the
  *  EEPROM storage area.  The minimum is two.  The emulated EEPROM area
@@ -36,6 +29,14 @@
  *  Ensure that the last page is not defined as the lock byte page.
  */
 #define FL_PAGES        2
+
+/**
+ * @def EE_BASE_ADDR
+ * @brief This should point to the memory location where the EEPROM
+ *  storage area begins.  This must coincide with the start of a Flash page.
+ */
+#define EE_BASE_ADDR    (LOCK_PAGE - FL_PAGE_SIZE * FL_PAGES)
+/* #define EE_BASE_ADDR    0x1A00*/
 
 /**
  * @def EE_SIZE

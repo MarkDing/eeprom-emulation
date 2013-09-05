@@ -30,22 +30,34 @@ void main (void)
     DISABLE_WDT()
     SFRPAGE_RESTORE()
     eeprom_init();
-    for(i=0;i< EE_SIZE ;i++) {
-    	eeprom_read_byte(i,&test_buf[i]);
+    for(i = 0;i< EE_SIZE ;i++) {
+    	if(eeprom_read_byte(i,&test_buf[i]) == ERROR)
+    		goto error;
     }
-    for(i=0;i< EE_SIZE - 2;i++) {
-    	test_buf[i] = i;
-    	eeprom_write_byte(i, test_buf[i]);
+    for(i = 0;i < 2;i++) {
+    	test_buf[i] = i + 0x55;
+    	if(eeprom_write_byte(i, test_buf[i]) == ERROR)
+    		goto error;
     }
     tmp = 0;
     while(tmp < 20){
-        for(i=0;i< EE_SIZE - 2;i++) {
+        for(i = 2;i< EE_SIZE; i++) {
         	test_buf[i] = i + 1;
-        	eeprom_write_byte(i, test_buf[i]);
+        	if(eeprom_write_byte(i, test_buf[i]) == ERROR)
+        		goto error;
         }
         tmp++;
     }
+    for(i = 0; i< EE_SIZE; i++) {
+    	if(eeprom_read_byte(i,&test_buf[i]) == ERROR)
+    		goto error;
+    }
+    if ((test_buf[0] != 0x55) || (test_buf[1] != 0x56))
+    	goto error;
     while(1);
+error:
+	i = 0xDEAD;
+	while(1);
 }
 
 //-----------------------------------------------------------------------------
