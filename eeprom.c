@@ -22,13 +22,6 @@
 #include "eeprom_config.h"
 
 
-/**
- * @var eeprom_bitmap[]
- * @brief This is EEPROM bit mapping
- *  "1" for updated value, "0" for original value
- */
-static U8 eeprom_bitmap[EE_BITMAP_SIZE];
-
 enum {
 	PAGE_STATUS_ERASED = 0xFF,
 	PAGE_STATUS_RECEIVING = 0xAA,
@@ -77,13 +70,13 @@ static void eeprom_format_page(U16 phy_addr)
 	erase_count.U8[1] = flash_read_byte(phy_addr + 1);
 	erase_count.U8[2] = flash_read_byte(phy_addr + 2);
 	erase_count.U8[3] = flash_read_byte(phy_addr + 3);
-	erase_count.U32++;
+	erase_count.U32 += 1;
 
 	flash_erase_page(phy_addr);
 
-	flash_write_byte(phy_addr + 1, erase_count.U8[3]);
+	flash_write_byte(phy_addr + 1, erase_count.U8[1]);
 	flash_write_byte(phy_addr + 2, erase_count.U8[2]);
-	flash_write_byte(phy_addr + 3, erase_count.U8[1]);
+	flash_write_byte(phy_addr + 3, erase_count.U8[3]);
 }
 
 /**
@@ -103,7 +96,8 @@ static U8 eeprom_is_formatted(U16 phy_addr)
     tag.U8[3] = flash_read_byte(phy_addr++);
 
     /* Change status is erased or erase count not equal 0xFFFFFF*/
-    if((tag.U8[0] != PAGE_STATUS_ERASED)||(tag.U32 == 0xFFFFFFFF)) {
+    if((tag.U8[0] != PAGE_STATUS_ERASED) ||
+      ((tag.U8[1] == 0xFF)&&(tag.U8[2] = 0xFF)&&(tag.U8[3] = 0xFF))) {
     	return FALSE;
     }
 
@@ -113,21 +107,6 @@ static U8 eeprom_is_formatted(U16 phy_addr)
         }
     }
     return TRUE;
-}
-
-
-/**
- * @fn static void eeprom_bitmap_init()
- * @brief init eeprom_bitmap all zero
- * 
- * @return none
- */
-static void eeprom_bitmap_init()
-{
-    U8 i;
-    for (i = 0; i < EE_BITMAP_SIZE; i++) {
-        eeprom_bitmap[i] = 0;
-    }
 }
 
 /**
@@ -148,30 +127,21 @@ static void eeprom_update_page_info(U8 idx, U16 phy_addr, U16 tail)
 }
 
 /**
- * @fn static void eeprom_creat_bitmap(U16 phy_addr)
- * @brief create eeprom bitmap by scanning flash page
+ * @fn static void eeprom_scan_page(U16 phy_addr, U8 idx)
+ * @brief scan page and update page information
  *
- * @param phy_addr flash physical address
- *
- * @return none
+ * @param phy_addr page physical address,
+ * @param idx page index
  */
-static void eeprom_creat_bitmap(U16 phy_addr)
+static void eeprom_scan_page(U16 phy_addr, U8 idx)
 {
-	U8 log_addr,idx;
-	U16 i, tail = EE_TAG_SIZE;
-	eeprom_bitmap_init();
-	for (i = EE_TAG_SIZE; i < FL_PAGE_SIZE; i += EE_VARIABLE_SIZE) {
-		log_addr = flash_read_byte(phy_addr + i);
-		if ((log_addr != 0xFF) && (log_addr < EE_SIZE)) {
-			log_addr %= EE_SIZE;
-			EE_SET_BITMAP(log_addr);
-			tail = i + EE_VARIABLE_SIZE;
-		}
+	U16 tail;
+	for (tail = EE_TAG_SIZE; tail < FL_PAGE_SIZE; tail += EE_VARIABLE_SIZE) {
+		if( 0xFF == flash_read_byte(phy_addr + tail))
+			break;
 	}
-	idx = (phy_addr - EE_BASE_ADDR) / FL_PAGE_SIZE;
 	eeprom_update_page_info(idx, phy_addr, tail);
 }
-
 
 /**
  * @fn static void eeprom_check_pages(void)
@@ -186,7 +156,7 @@ static void eeprom_creat_bitmap(U16 phy_addr)
  */
 static void eeprom_check_pages(void)
 {
-    U8 i, status, active_pages = 0;
+    U8 i, status, idx, active_pages = 0;
     U16 phy_addr ,active_page_addr = EE_BASE_ADDR;
     for (i = 0; i < FL_PAGES; i++) {
         phy_addr = EE_BASE_ADDR + i * FL_PAGE_SIZE;
@@ -208,9 +178,11 @@ static void eeprom_check_pages(void)
                     }else{
                     	eeprom_format_page(active_page_addr);
                     	active_page_addr = phy_addr;
+                    	idx = i;
                     }
                 }else{
                 	active_page_addr = phy_addr;
+                	idx = i;
                 }
                 break;
             default:
@@ -220,7 +192,7 @@ static void eeprom_check_pages(void)
     /* If there is no active page, we update page status position with active status flag*/
 	if (0 == active_pages)
 		flash_write_byte(active_page_addr,PAGE_STATUS_ACTIVE);
-    eeprom_creat_bitmap(active_page_addr);
+	eeprom_scan_page(active_page_addr,idx);
 }
 
 /**
@@ -251,28 +223,28 @@ static U16 eeprom_get_next_page(U8 page_idx)
 static void flash_copy_page()
 {
 	U16 src, dest, tail;
-	U8 log_addr,tmp;
+	U8 log_addr,idx;
+	U8 eeprom_bitmap[EE_BITMAP_SIZE];
 
+	for (idx = 0; idx < EE_BITMAP_SIZE; idx++) {
+        eeprom_bitmap[idx] = 0;
+    }
 	/* Source page scan start from bottom*/
 	src = page.addr + FL_PAGE_SIZE - EE_VARIABLE_SIZE;
 
 	dest = eeprom_get_next_page(page.idx);
 	/* Mark destination page as receiving status */
 	flash_write_byte(dest,PAGE_STATUS_RECEIVING);
-	tail = dest + EE_TAG_SIZE;
+	tail = EE_TAG_SIZE;
 	/* Read data from source page and copy it to destination page*/
 	while (src >= (page.addr + EE_TAG_SIZE)) {
 		log_addr = flash_read_byte(src);
 		if (log_addr < EE_SIZE) {
-			/* Once we copy one data from source page, we clear it in bitmap.
-			 * Then we will copy latest copy only for that data*/
-			if (EE_GET_BITMAP(log_addr)) {
-				tmp = flash_read_byte(src);
-                flash_write_byte(tail, tmp);
-				tmp = flash_read_byte(src + 1);
-                flash_write_byte(tail + 1, tmp);
+			if (!EE_GET_BITMAP(log_addr)) {
+                flash_write_byte(dest + tail, log_addr);
+                flash_write_byte(dest + tail + 1, flash_read_byte(src + 1));
 				tail += EE_VARIABLE_SIZE;
-				EE_CLR_BITMAP(log_addr);
+				EE_SET_BITMAP(log_addr);
 			}
 		}
 		src -= EE_VARIABLE_SIZE;
@@ -281,8 +253,9 @@ static void flash_copy_page()
 	flash_write_byte(dest,PAGE_STATUS_ACTIVE);
 	/* Erase source page and update erase count in page TAG position*/
 	eeprom_format_page(page.addr);
-	/* Create bitmap for it */
-	eeprom_creat_bitmap(dest);
+	/* Update page information*/
+	idx = (dest - EE_BASE_ADDR) / FL_PAGE_SIZE;
+	eeprom_update_page_info(idx, dest, tail);
 }
 
 U8 eeprom_init()
@@ -297,12 +270,6 @@ U8 eeprom_read_byte(U8 log_addr, U8 *byte)
 	if (log_addr >= EE_SIZE)
 		return ERROR;
 
-	/* Not in bitmap, that mean it keeps original value 0xFF*/
-	if(0 == EE_GET_BITMAP(log_addr)) {
-		*byte = 0xFF;
-		return SUCCESS;
-	}
-
 	phy_addr = page.addr + page.tail - EE_VARIABLE_SIZE;
 	while(phy_addr >= (page.addr + EE_TAG_SIZE)){
 		if (log_addr == flash_read_byte(phy_addr)) {
@@ -311,7 +278,8 @@ U8 eeprom_read_byte(U8 log_addr, U8 *byte)
 		}
 		phy_addr -= EE_VARIABLE_SIZE;
 	}
-	return ERROR;
+	*byte = 0xFF;
+	return SUCCESS;
 }
 
 
@@ -328,7 +296,6 @@ U8 eeprom_write_byte(U8 log_addr, U8 byte)
 	flash_write_byte(phy_addr, log_addr);
 	flash_write_byte(phy_addr + 1, byte);
 	page.tail += EE_VARIABLE_SIZE;
-	EE_SET_BITMAP(log_addr);
 	return SUCCESS;
 }
 

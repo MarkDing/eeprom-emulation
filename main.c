@@ -1,6 +1,6 @@
 /**
  * @file main.c
- * @brief his file is a simple example usage of the EEPROM Emulation firmware.
+ * @brief This file is a simple example usage of the EEPROM Emulation firmware.
  *
  * @date 3 Sep 2013
  * @version 1.0
@@ -21,6 +21,12 @@
 #include "eeprom.h"
 
 U8 test_buf[32];
+
+/**
+ * @fn void main(void)
+ * @brief eeprom emulation main function entry
+ *
+ */
 void main (void) 
 {
 	U16 i;
