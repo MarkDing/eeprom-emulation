@@ -20,7 +20,7 @@
 #include "eeprom_config.h"
 #include "eeprom.h"
 
-U8 test_buf[32];
+U8 xdata test_buf[EE_SIZE];
 
 /**
  * @fn void main(void)
@@ -46,10 +46,10 @@ void main (void)
     		goto error;
     }
     tmp = 0;
-    while(tmp < 20){
+    while(tmp < 50){
         for(i = 2;i< EE_SIZE; i++) {
         	test_buf[i] = i + 1;
-        	if(eeprom_write_byte(i, test_buf[i]) == ERROR)
+        	if(eeprom_write_byte(i, test_buf[i] + tmp) == ERROR)
         		goto error;
         }
         tmp++;
@@ -57,9 +57,14 @@ void main (void)
     for(i = 0; i< EE_SIZE; i++) {
     	if(eeprom_read_byte(i,&test_buf[i]) == ERROR)
     		goto error;
+    	if((i == 0) || (i == 1)){
+    	    if ((test_buf[0] != 0x55) || (test_buf[1] != 0x56))
+    	    	goto error;
+    	}else{
+    		if (test_buf[i] != (i + tmp))
+    			goto error;
+    	}
     }
-    if ((test_buf[0] != 0x55) || (test_buf[1] != 0x56))
-    	goto error;
     while(1);
 error:
 	i = 0xDEAD;

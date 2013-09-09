@@ -41,9 +41,9 @@
 /**
  * @def EE_SIZE
  * @brief Defines how many bytes are in the emulated EEPROM.  The maximum
- *  setting is 254 for this code.
+ *  setting is ((FL_PAGE_SIZE - 4) / 4) & 0xF8. It must be 8 bit align.
  */
-#define EE_SIZE         32
+#define EE_SIZE         16
 
 /**
  * @def EE_BITMAP_SIZE
@@ -58,6 +58,9 @@
  */
 #define RSTSRC_VAL      0x02
 
+#if (EE_SIZE % 8) != 0
+#error "Invalid EE_SIZE.  Select an integer multiple of 8."
+#endif
 
 #if (EE_BASE_ADDR % FL_PAGE_SIZE) != 0
 #error "Invalid EE_BASE_ADDR.  Select an integer multiple of FL_PAGE_SIZE."

@@ -215,8 +215,13 @@ static U16 eeprom_get_next_page(U8 page_idx)
  * @fn void flash_copy_page()
  * @brief move valid data from one page to another page.
  *
- * This will be called when an active page is full. It copies data from source page
- * to destination page.
+ * When an active page is full, it will find next available page, and write data
+ * in it, and then call this function. It copies data from source page to
+ * destination page.
+ *
+ * @note When calling this function, be aware that destination page already write
+ * a pair of the data. Before copy loop start, we need to read it out and set
+ * bitmap correspond bit to '1'.
  *
  * @return none
  */
@@ -235,7 +240,8 @@ static void flash_copy_page()
 	dest = eeprom_get_next_page(page.idx);
 	/* Mark destination page as receiving status */
 	flash_write_byte(dest,PAGE_STATUS_RECEIVING);
-	tail = EE_TAG_SIZE;
+	EE_SET_BITMAP(flash_read_byte(dest + EE_TAG_SIZE));
+	tail =EE_TAG_SIZE + EE_VARIABLE_SIZE;
 	/* Read data from source page and copy it to destination page*/
 	while (src >= (page.addr + EE_TAG_SIZE)) {
 		log_addr = flash_read_byte(src);
@@ -282,20 +288,24 @@ U8 eeprom_read_byte(U8 log_addr, U8 *byte)
 	return SUCCESS;
 }
 
-
 U8 eeprom_write_byte(U8 log_addr, U8 byte)
 {
 	U16 phy_addr;
 	if (log_addr >= EE_SIZE)
 		return ERROR;
 
-	if (page.tail >= FL_PAGE_SIZE)
+	/* The page is full, we need to find a new page*/
+	if(page.tail >= FL_PAGE_SIZE) {
+		phy_addr = eeprom_get_next_page(page.idx) + EE_TAG_SIZE;
+		flash_write_byte(phy_addr, log_addr);
+		flash_write_byte(phy_addr + 1, byte);
 		flash_copy_page();
-
-	phy_addr = page.addr + page.tail;
-	flash_write_byte(phy_addr, log_addr);
-	flash_write_byte(phy_addr + 1, byte);
-	page.tail += EE_VARIABLE_SIZE;
+	}else{
+		phy_addr = page.addr + page.tail;
+		flash_write_byte(phy_addr, log_addr);
+		flash_write_byte(phy_addr + 1, byte);
+		page.tail += EE_VARIABLE_SIZE;
+	}
 	return SUCCESS;
 }
 
