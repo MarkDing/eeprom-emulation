@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Eeprom-emulation : EEPROM emualtion for 8-bit flash MCU" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Eeprom-emulation</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/MarkDing/eeprom-emulation">View on GitHub</a>
+
+          <h1 id="project_title">Eeprom-emulation</h1>
+          <h2 id="project_tagline">EEPROM emualtion for 8-bit flash MCU</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/MarkDing/eeprom-emulation/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/MarkDing/eeprom-emulation/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <ol>
+<li>Introduction
+This post demonstrates a way to use the flash memory of the 8-bit flash MCU families to emulate single variable rewritable EEPROM memory through software. The example API provided enables reading and writing of single variables to non-volatile flash memory. The erase-rewrite algorithm distributes page erases and thereby doing wear leveling.</li>
+<li>General Theory
+2.1. EEPROM and Flash Based Memory
+EEPROM stands for Electrically Erasable Programmable Read-Only Memory and is a type of nonvolatile memory that is byte erasable and therefore often used to store small amounts of data that must be saved when power is removed. Most of 8 bit MCU does not include an embedded EEPROM module for byte erasable non-volatile storage, but for C8051Fxxx MCU families do provide flash memory for non-volatile data storage. The main difference between flash memory and EEPROM is the erasable unit size. Flash memory is block-erasable which means that bytes cannot be erased individually, instead a block consisting of several bytes need to be erased at the same time. Through software however, it is possible to emulate individually erasable rewritable byte memory using block-erasable flash memory.</li>
+</ol><p>To provide EEPROM functionality for the 8 bit flash MCU in an application, there are at least two options available. The first one is to include an external EEPROM module when designing the hardware layout of the application. The other is to use the on-chip flash memory and emulate EEPROM functionality through a software API. There are however some key differences between these two methods.
+• First, the write access time for flash memory is shorter than for external EEPROM. This means that writing to emulated EEPROM is faster than writing to an external EEPROM.
+• Second, while a standalone EEPROM will be able to complete a write operation even if the system is reset, the emulated EEPROM will need the CPU to be active throughout the entire flash operation. This is an important difference. The consequences of an aborted flash operation should be taken into account when designing an application. The flash based EEPROM emulation could use checksums and logging to ensure the integrity of written data.
+• Lastly the emulated EEPROM will regularly need to erase pages in flash, to free space and be able to write to the same page more than once. On a standalone EEPROM there is no need for a dedicated erase operation, since all bytes can be rewritten independently. Here it is also important to notice that the flash erase operation will need the CPU to be running safely for the entire operation.</p>
+
+<p>In addition to the risk of power failure or system reset aborting flash write or erase operations, one must also handle internal sources like disable interrupts and enable VDD monitor while performing the flash write/erase operations. This can be done in software.</p>
+
+<p>2.2. Flash Limitations
+Flash memory is limited to a finite number of program-erase cycles. This means that the embedded flash memory of the MCU can be erased only a certain number of times, before the wear will begin to affect the integrity of the storage. This deterioration applies to all kinds of flash memory. All 8 bit flash MCUs are guaranteed to withstand a number of erase cycles. This number can be found in the data sheet for each part.
+All flash memory is divided into pages that each must be erased as single units. The amount of on-chip flash memory and the page size found in the different 8 bit MCU varies depending on the specific part. See the Reference Manual for more information about the page size. Because the erase operation erases only whole pages, it is important to write as much data as possible to a single page of flash, before erasing the page.</p>
+
+<ol>
+<li>Implementation
+There are different ways to implement an EEPROM Emulator using flash memory. The idea behind the example attached in this application note, is to allocate a certain number of pages of flash memory for the entire lifetime of the application. The wear is then leveled among these by alternating which pages are used. The number of pages allocated must reflect the amount of data that will be written throughout the application lifetime.</li>
+</ol><p>3.1. Pages and Their States
+In every page allocated to the EEPROM Emulator provided, the first dword is reserved for page head data. This head dword contains the status of the page and the erase count. The erase count is the number of times the page has been erased. The erase count is incremented each time the page is erased. Each page will always be in one of three different states. Active, Receiving or Erased.</p>
+
+<ul>
+<li>After a page is erased, all bits in the entire page are 1's except head data of the page.</li>
+<li>When a page is receiving, it means that a transfer of variables from a full active page is in progress. After the transfer is complete, the receiving page is made the new active one, and the old active page is erased.</li>
+<li>The active page is the page that contains the currently valid data. All read and write operations are made on the active page. There should never be more than one active or receiving page at any time in this implementation.</li>
+</ul><p>Fig 3.1 shows the state flow for a realization using 2 pages. The flow would be similar if more pages are allocated; only more pages would be in the erased state simultaneously. 
+<strong>Figure 3.1 EEPROM Emulation Page Status Flow.</strong></p>
+
+<p>During initialization, the page status for the selected number of pages is checked, to ensure that a legal set of page-states are obtained. If there is more than one active page, the page which is full will be erased. And receiving status page will be erased. This minimizes the probability for data collisions with program instructions, which are located at the base of the flash. In applications where much of the available flash memory is in use, it can be critical to know where all data is stored in the flash to avoid collisions.  </p>
+
+<p>The remaining words of each page, after the page head data, are free to be used for data storage. Each data storage word is divided into two parts; one virtual address field and one data field. Each of them is 8 bits wide. Whenever a page is full, a page transfer is initiated. This operation consists of several steps to always ensure that all variables are non-volatile in case of an external event. First, an erased page is located to store the valid data present in the full page. This page is marked as receiving. Next, the most recent data associated with each variable is transferred to the top of the new page. When this is done, the old active page is erased, the erase count is written to the old active page header, and receiving page is labeled as the new active page. This process is illustrated in Figure 3.2.
+<strong>Figure 3.2. EEPRO Emulation Variable Flow</strong></p>
+
+<p>3.2. Read and Write
+Reading consists of iteration through the active page, starting from the bottom. When the correct virtual address is found for the first time, the corresponding data is returned as the currently valid data. 
+The write operation consists of a similar iteration, only which it is starting at the top of the active page. When an empty word is found, the correct virtual address and data are written, and the function returns. If no empty word is found, and the end of the page is reached, the page is considered full. 
+In this implementation all valid data has to fit in one page (the active page). The page size therefore puts a direct limitation on the number of variables. Each variable uses 2 bytes (1 byte for data and 1 byte for the virtual address) and 4 bytes per page is reserved for the Page Status Header. We default set the EEPROM size no more than 1/4 flash page size. And also 8 bit alignment. For example, 512 bytes page size, the maximum EEPROM size is:
+Nmax = ((512 - 4) / 4) &amp; 0xF8 = 127 &amp; 0xF8 = 120. </p>
+
+<p>3.3. Initialization and Recovery
+An important part of EEPROM emulation software, is to ensure correct page state, and data recovery on system startup. For this reason, the initialization function should be run near the start of the software, before any data is written or read to/from EEPROM. The initializing function will decide how many pages that are allocated to the emulator, it will then check the head of each of these pages to ensure that the set of pages are valid. There are several conditions we need to handle.</p>
+
+<ul>
+<li>Erased page
+It is not formatted, simply format this page. The format operation contains erase the page, and update erase count in page header data. </li>
+<li>Page with receiving status
+Simply format this page; this situation can be caused by an uncompleted page transfer.</li>
+<li>Two more pages with active status.
+Compare with two pages; simply format the page which is full. </li>
+</ul><p>Once status check completed, it will scan current active page, and update page information.
+3.4.    Configurable Options
+The firmware supports all 8 bit flash MCU families. Define the device being used in flash_parameters.h, (i.e. C8051F850) </p>
+
+<h1>
+<a name="define-c8051f850" class="anchor" href="#define-c8051f850"><span class="octicon octicon-link"></span></a>define C8051F850</h1>
+
+<p>The EEPROM emulation firmware has following parameters can be configured. These parameters are located in head file eeprom_config.h. 
+Parameter   Options
+FL_PAGES    Pages used for EEPROM emulation: 2
+EE_BASE_ADDR    EEPROM storage area begins: LOCK_PAGE - FL_PAGE_SIZE * FL_PAGES
+EE_SIZE Number of bytes of EEPROM: 16 
+EE_TAG_SIZE Number of bytes for page head data: 4 
+EE_VARIABLE_SIZE    Number of bytes used per EEPROM data: 2</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Eeprom-emulation maintained by <a href="https://github.com/MarkDing">MarkDing</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
